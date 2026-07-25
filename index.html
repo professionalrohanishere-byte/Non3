@@ -106,6 +106,7 @@
     <div class="hud-grid"></div>
     <div class="vignette"></div>
     <div class="scanline"></div>
+    <div class="ambient-field" id="ambient-field"></div>
 
     <!-- decorative corner telemetry (desktop only) -->
     <div class="corner-hud corner-hud-tl">
@@ -117,37 +118,6 @@
         <div class="radar-sweep"></div>
         <div class="radar-ring"></div>
         <div class="radar-ring r2"></div>
-      </div>
-    </div>
-
-    <!-- decorative side stacks (horizontal mode only) -->
-    <div class="side-hud side-hud-left">
-      <div class="mini-panel">
-        <div class="mini-panel-title">LOG_001</div>
-        <div class="mini-bars"><span></span><span></span><span></span><span></span><span></span><span></span></div>
-      </div>
-      <div class="mini-panel">
-        <div class="mini-panel-title">SYNC</div>
-        <div class="mini-wave"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
-      </div>
-      <div class="mini-panel">
-        <div class="mini-panel-title">STATUS</div>
-        <div class="mini-track"><div class="mini-track-fill" style="width:72%"></div></div>
-        <div class="mini-track"><div class="mini-track-fill gold" style="width:44%"></div></div>
-      </div>
-    </div>
-    <div class="side-hud side-hud-right">
-      <div class="mini-panel">
-        <div class="mini-panel-title">TELEMETRY</div>
-        <div class="mini-bars alt"><span></span><span></span><span></span><span></span><span></span><span></span></div>
-      </div>
-      <div class="mini-panel">
-        <div class="mini-panel-title">FEED</div>
-        <div class="mini-wave"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
-      </div>
-      <div class="mini-panel">
-        <div class="mini-panel-title">CORE</div>
-        <div class="mini-ring-mini"><span></span></div>
       </div>
     </div>
 
@@ -172,7 +142,6 @@
           <div class="topbar-right">
             <span class="topbar-user" id="topbar-user"></span>
             <span class="topbar-clock" id="clock">--:--:--</span>
-            <button class="lock-btn" id="rotate-btn" title="Switch layout">⇄</button>
             <button class="lock-btn" id="lock-now-btn" title="Lock">⎋</button>
           </div>
         </div>

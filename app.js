@@ -367,14 +367,38 @@
   function buildKeypad(containerId, onKey) {
     const el = document.getElementById(containerId);
     el.innerHTML = "";
-    const keys = ["1","2","3","4","5","6","7","8","9","","0","back"];
-    keys.forEach((k) => {
+    el.classList.add("radial-keypad");
+    const size = 250, cx = size / 2, cy = size / 2, radius = 96;
+    const digits = ["1","2","3","4","5","6","7","8","9","0"];
+    el.style.width = size + "px";
+    el.style.height = size + "px";
+
+    digits.forEach((k, i) => {
+      const angle = (i / digits.length) * 2 * Math.PI - Math.PI / 2;
+      const x = cx + radius * Math.cos(angle);
+      const y = cy + radius * Math.sin(angle);
       const btn = document.createElement("div");
-      if (k === "") { btn.className = "key"; btn.style.visibility = "hidden"; }
-      else if (k === "back") { btn.className = "key wide"; btn.textContent = "⌫"; btn.onclick = () => onKey("back"); }
-      else { btn.className = "key"; btn.textContent = k; btn.onclick = () => onKey(k); }
+      btn.className = "key radial";
+      btn.textContent = k;
+      btn.style.left = x + "px";
+      btn.style.top = y + "px";
+      btn.onclick = () => onKey(k);
       el.appendChild(btn);
     });
+
+    // center back/delete button
+    const back = document.createElement("div");
+    back.className = "key radial center";
+    back.textContent = "⌫";
+    back.style.left = cx + "px";
+    back.style.top = cy + "px";
+    back.onclick = () => onKey("back");
+    el.appendChild(back);
+
+    // decorative outer dial ring
+    const ring = document.createElement("div");
+    ring.className = "keypad-ring";
+    el.appendChild(ring);
   }
 
   /* ================= USAGE TRACKING ================= */
@@ -400,12 +424,8 @@
       btn.className = "nav-btn" + (m.key === active ? " active" : "");
       const countTxt = m.kind === "list" ? data[m.key].length : "";
       btn.innerHTML = `
-        <span class="icon">${m.icon}</span>
-        <span class="txt">
-          <div class="label">${m.label}</div>
-          <div class="desig">${m.desig}</div>
-        </span>
-        <span class="count">${countTxt}</span>`;
+        <span class="orb">${m.icon}${countTxt !== "" ? `<span class="count">${countTxt}</span>` : ""}</span>
+        <span class="label">${m.label}</span>`;
       btn.onclick = () => { soundTap(); setActive(m.key); };
       nav.appendChild(btn);
     });
@@ -415,7 +435,7 @@
     MODULES.forEach((m) => {
       const btn = document.createElement("button");
       btn.className = "mobile-nav-btn" + (m.key === active ? " active" : "");
-      btn.innerHTML = `${m.icon} ${m.label}`;
+      btn.innerHTML = `<span class="orb">${m.icon}</span><span class="label">${m.label}</span>`;
       btn.onclick = () => { soundTap(); setActive(m.key); };
       mnav.appendChild(btn);
     });
@@ -480,19 +500,27 @@
     return d.innerHTML;
   }
 
-  /* ================= DIAGRAM VIEW ================= */
+  /* ================= DIAGRAM VIEW (pannable + zoomable) ================= */
+  let diagramState = { x: 0, y: 0, scale: 1 };
+  let diagramPointers = new Map();
+  let diagramPanStart = null;
+  let diagramPinchDist = null;
+  let diagramInteractionsBound = false;
+
+  function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
+  function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+
   function renderDiagram() {
     const wrap = document.getElementById("diagram-wrap");
     const w = 480, h = 420, cx = w / 2, cy = h / 2;
-    const branches = LIST_MODULES; // tasks, thoughts, plans, dreams, projects
+    const branches = LIST_MODULES;
     const radius = 150;
     const nodeColors = { tasks: "#4fd8ff", thoughts: "#ffb020", plans: "#4fd8ff", dreams: "#ffb020", projects: "#4fd8ff" };
 
-    let svg = `<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">`;
-    // pulsing central hub rings
-    svg += `<circle cx="${cx}" cy="${cy}" r="34" fill="none" stroke="rgba(79,216,255,0.25)" stroke-width="1"><animate attributeName="r" values="30;40;30" dur="3s" repeatCount="indefinite"/></circle>`;
-    svg += `<circle cx="${cx}" cy="${cy}" r="22" fill="rgba(79,216,255,0.08)" stroke="rgba(255,176,32,0.5)" stroke-width="1"/>`;
-    svg += `<text x="${cx}" y="${cy+4}" text-anchor="middle" class="diagram-node-label" style="font-size:10px">YOU</text>`;
+    let inner = "";
+    inner += `<circle cx="${cx}" cy="${cy}" r="34" fill="none" stroke="rgba(79,216,255,0.25)" stroke-width="1"><animate attributeName="r" values="30;40;30" dur="3s" repeatCount="indefinite"/></circle>`;
+    inner += `<circle cx="${cx}" cy="${cy}" r="22" fill="rgba(79,216,255,0.08)" stroke="rgba(255,176,32,0.5)" stroke-width="1"/>`;
+    inner += `<text x="${cx}" y="${cy+4}" text-anchor="middle" class="diagram-node-label" style="font-size:10px">YOU</text>`;
 
     branches.forEach((m, i) => {
       const angle = (i / branches.length) * 2 * Math.PI - Math.PI / 2;
@@ -501,13 +529,79 @@
       const count = data[m.key].length;
       const r = 26 + Math.min(count, 8) * 2;
       const color = nodeColors[m.key] || "#4fd8ff";
-      svg += `<line x1="${cx}" y1="${cy}" x2="${nx}" y2="${ny}" stroke="rgba(79,216,255,0.2)" stroke-width="1" stroke-dasharray="3 3"/>`;
-      svg += `<circle cx="${nx}" cy="${ny}" r="${r}" fill="rgba(8,25,35,0.6)" stroke="${color}" stroke-width="1.3"/>`;
-      svg += `<text x="${nx}" y="${ny-2}" text-anchor="middle" class="diagram-node-label">${m.label}</text>`;
-      svg += `<text x="${nx}" y="${ny+12}" text-anchor="middle" class="diagram-node-count">${count} entries</text>`;
+      inner += `<line x1="${cx}" y1="${cy}" x2="${nx}" y2="${ny}" stroke="rgba(79,216,255,0.2)" stroke-width="1" stroke-dasharray="3 3"/>`;
+      inner += `<circle cx="${nx}" cy="${ny}" r="${r}" fill="rgba(8,25,35,0.6)" stroke="${color}" stroke-width="1.3"/>`;
+      inner += `<text x="${nx}" y="${ny-2}" text-anchor="middle" class="diagram-node-label">${m.label}</text>`;
+      inner += `<text x="${nx}" y="${ny+12}" text-anchor="middle" class="diagram-node-count">${count} entries</text>`;
     });
-    svg += `</svg>`;
-    wrap.innerHTML = svg;
+
+    wrap.innerHTML = `
+      <div class="diagram-hint">DRAG TO PAN · PINCH OR SCROLL TO ZOOM</div>
+      <button class="diagram-reset" id="diagram-reset">RESET VIEW</button>
+      <svg id="diagram-svg" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">
+        <g id="diagram-viewport" transform="translate(${diagramState.x},${diagramState.y}) scale(${diagramState.scale})">${inner}</g>
+      </svg>`;
+
+    document.getElementById("diagram-reset").onclick = () => {
+      soundTap();
+      diagramState = { x: 0, y: 0, scale: 1 };
+      applyDiagramTransform();
+    };
+
+    bindDiagramInteractions();
+  }
+
+  function applyDiagramTransform() {
+    const g = document.getElementById("diagram-viewport");
+    if (g) g.setAttribute("transform", `translate(${diagramState.x},${diagramState.y}) scale(${diagramState.scale})`);
+  }
+
+  function bindDiagramInteractions() {
+    const wrap = document.getElementById("diagram-wrap");
+    if (!wrap) return;
+    wrap.style.touchAction = "none";
+
+    wrap.onpointerdown = (e) => {
+      wrap.setPointerCapture(e.pointerId);
+      diagramPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (diagramPointers.size === 1) {
+        diagramPanStart = { x: e.clientX, y: e.clientY, ox: diagramState.x, oy: diagramState.y };
+      } else if (diagramPointers.size === 2) {
+        const pts = Array.from(diagramPointers.values());
+        diagramPinchDist = dist(pts[0], pts[1]);
+      }
+    };
+    wrap.onpointermove = (e) => {
+      if (!diagramPointers.has(e.pointerId)) return;
+      diagramPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (diagramPointers.size === 1 && diagramPanStart) {
+        diagramState.x = diagramPanStart.ox + (e.clientX - diagramPanStart.x);
+        diagramState.y = diagramPanStart.oy + (e.clientY - diagramPanStart.y);
+        applyDiagramTransform();
+      } else if (diagramPointers.size === 2) {
+        const pts = Array.from(diagramPointers.values());
+        const d = dist(pts[0], pts[1]);
+        if (diagramPinchDist) {
+          diagramState.scale = clamp(diagramState.scale * (d / diagramPinchDist), 0.4, 3.5);
+        }
+        diagramPinchDist = d;
+        applyDiagramTransform();
+      }
+    };
+    function endPointer(e) {
+      diagramPointers.delete(e.pointerId);
+      if (diagramPointers.size < 2) diagramPinchDist = null;
+      if (diagramPointers.size === 0) diagramPanStart = null;
+    }
+    wrap.onpointerup = endPointer;
+    wrap.onpointercancel = endPointer;
+    wrap.onpointerleave = endPointer;
+
+    wrap.onwheel = (e) => {
+      e.preventDefault();
+      diagramState.scale = clamp(diagramState.scale * (e.deltaY > 0 ? 0.9 : 1.1), 0.4, 3.5);
+      applyDiagramTransform();
+    };
   }
 
   /* ================= OVERVIEW RAIL ================= */
@@ -612,11 +706,18 @@
     setInterval(update, 1000);
   }
 
-  function applyStoredLayout() {
-    try {
-      const pref = localStorage.getItem(SP + "layout");
-      if (pref === "horizontal") document.body.classList.add("horizontal-mode");
-    } catch (e) {}
+  function spawnAmbientParticles() {
+    const field = document.getElementById("ambient-field");
+    if (!field) return;
+    const count = 22;
+    let html = "";
+    for (let i = 0; i < count; i++) {
+      const left = Math.random() * 100;
+      const dur = 8 + Math.random() * 14;
+      const delay = Math.random() * 12;
+      html += `<span style="left:${left}%; bottom:-10px; animation-duration:${dur}s; animation-delay:${delay}s;"></span>`;
+    }
+    field.innerHTML = html;
   }
 
   /* ================= APP START ================= */
@@ -626,17 +727,10 @@
     document.getElementById("topbar-user").textContent = name.toUpperCase();
     tickClock();
     renderAll();
+    spawnAmbientParticles();
 
     document.getElementById("log-btn").addEventListener("click", addItem);
     document.getElementById("entry-input").addEventListener("keydown", (e) => { if (e.key === "Enter") addItem(); });
-
-    // layout toggle (horizontal / vertical)
-    applyStoredLayout();
-    document.getElementById("rotate-btn").addEventListener("click", () => {
-      soundTap();
-      const isHoriz = document.body.classList.toggle("horizontal-mode");
-      try { localStorage.setItem(SP + "layout", isHoriz ? "horizontal" : "vertical"); } catch (e) {}
-    });
 
     document.getElementById("lock-now-btn").addEventListener("click", () => {
       soundTap();
