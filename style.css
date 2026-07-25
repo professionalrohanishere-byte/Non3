@@ -274,11 +274,15 @@ body.horizontal-mode .main-grid { grid-template-columns: 190px 1fr 190px !import
 body.horizontal-mode .nav-rail-wrap { display: block !important; }
 body.horizontal-mode .info-rail-wrap { display: block !important; }
 body.horizontal-mode .mobile-nav { display: none !important; }
-body.horizontal-mode .corner-hud { display: block !important; }
 body.horizontal-mode .topbar-sub, body.horizontal-mode .topbar-user { display: inline !important; }
-body.horizontal-mode .side-hud { display: flex !important; }
 body.horizontal-mode .hologram-core { opacity: 0.35; }
 .side-hud { display: none; }
+/* decorative side/corner panels only ever show on genuinely large screens (real desktop),
+   never on a phone — even one using the fake-rotate horizontal mode — to avoid overlap */
+@media (min-width: 1024px) {
+  .side-hud { display: flex; }
+  .corner-hud { display: block; }
+}
 
 /* ============ SIDE HUD STACKS (decorative, horizontal mode) ============ */
 .side-hud { position: absolute; top: 70px; bottom: 60px; z-index: 2; flex-direction: column; gap: 10px; width: 130px; pointer-events: none; opacity: 0.6; }
