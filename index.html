@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+<title>Personal OS</title>
+<meta name="theme-color" content="#05080d" />
+<meta name="description" content="A private, offline console for your tasks, thoughts, plans, dreams and projects." />
+
+<link rel="manifest" href="manifest.json" />
+<link rel="apple-touch-icon" href="icons/icon-192.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Personal OS" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ============ BOOT SCREEN ============ -->
+  <div id="boot-screen">
+    <div class="boot-label">INITIALIZING</div>
+    <div class="boot-ring-wrap">
+      <svg width="220" height="220" class="boot-ring-outer" viewBox="0 0 220 220">
+        <circle cx="110" cy="110" r="98" fill="none" stroke="rgba(79,216,255,0.15)" stroke-width="1" stroke-dasharray="1 8" />
+      </svg>
+      <svg width="180" height="180" class="boot-ring-inner" viewBox="0 0 180 180">
+        <circle cx="90" cy="90" r="72" fill="none" stroke="rgba(255,176,32,0.2)" stroke-width="1" stroke-dasharray="6 4" />
+      </svg>
+      <div class="boot-pct" id="boot-pct">0%</div>
+    </div>
+    <div class="boot-bar"><div class="boot-bar-fill" id="boot-bar-fill"></div></div>
+    <div class="boot-sub" id="boot-sub">LOADING PERSONAL OPERATING SYSTEM</div>
+  </div>
+
+  <!-- ============ SETUP (first run) ============ -->
+  <div id="setup-screen" class="hidden overlay-screen">
+    <div class="hud-grid"></div>
+    <div class="setup-card bracketed">
+      <span class="br tl gold"></span><span class="br tr gold"></span><span class="br bl gold"></span><span class="br br-c gold"></span>
+      <div class="setup-inner">
+        <div class="setup-step" id="setup-step-name">
+          <div class="setup-eyebrow">FIRST BOOT · IDENTITY</div>
+          <div class="setup-title">What should I call you?</div>
+          <input id="setup-name-input" type="text" placeholder="Veeru" maxlength="20" autocomplete="off" />
+          <button class="setup-btn" id="setup-name-next">CONTINUE →</button>
+        </div>
+        <div class="setup-step hidden" id="setup-step-pin">
+          <div class="setup-eyebrow">SECURITY · ACCESS CODE</div>
+          <div class="setup-title">Create a PIN</div>
+          <div class="pin-dots" id="setup-pin-dots"></div>
+          <div class="setup-hint" id="setup-pin-hint">Enter 4 digits</div>
+          <div class="keypad" id="setup-keypad"></div>
+        </div>
+        <div class="setup-step hidden" id="setup-step-bio">
+          <div class="setup-eyebrow">SECURITY · BIOMETRIC</div>
+          <div class="setup-title">Enable fingerprint unlock?</div>
+          <div class="setup-sub">Use your device's fingerprint or face unlock instead of typing your PIN each time. You can still use your PIN as backup.</div>
+          <button class="setup-btn" id="setup-bio-enable">ENABLE FINGERPRINT</button>
+          <button class="setup-btn ghost" id="setup-bio-skip">SKIP — PIN ONLY</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ LOCK SCREEN ============ -->
+  <div id="lock-screen" class="hidden overlay-screen">
+    <div class="hud-grid"></div>
+    <div class="lock-card">
+      <div class="lock-ring">
+        <svg width="120" height="120" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(79,216,255,0.2)" stroke-width="1.5" />
+          <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,176,32,0.5)" stroke-width="1.5" stroke-dasharray="4 6" class="spin-slow" />
+        </svg>
+        <span id="lock-icon" class="lock-icon">⎈</span>
+      </div>
+      <div class="lock-title">SYSTEM LOCKED</div>
+      <div class="lock-sub" id="lock-sub">Verifying identity…</div>
+
+      <div class="pin-dots hidden" id="lock-pin-dots"></div>
+      <div class="keypad hidden" id="lock-keypad"></div>
+
+      <button class="setup-btn ghost hidden" id="lock-use-pin">USE PIN INSTEAD</button>
+      <button class="setup-btn ghost hidden" id="lock-use-bio">TRY FINGERPRINT AGAIN</button>
+    </div>
+  </div>
+
+  <!-- ============ WELCOME POPUP ============ -->
+  <div id="welcome-screen" class="hidden overlay-screen">
+    <div class="hud-grid"></div>
+    <div class="welcome-card">
+      <div class="welcome-ring">
+        <div class="welcome-ring-glow"></div>
+      </div>
+      <div class="welcome-eyebrow">ACCESS GRANTED</div>
+      <div class="welcome-title">Welcome, <span id="welcome-name">Veeru</span></div>
+      <div class="welcome-sub" id="welcome-time"></div>
+    </div>
+  </div>
+
+  <!-- ============ MAIN APP ============ -->
+  <div id="app" class="hidden">
+    <div class="hud-grid"></div>
+    <div class="vignette"></div>
+    <div class="scanline"></div>
+    <div class="ambient-field" id="ambient-field"></div>
+
+    <!-- decorative corner telemetry (desktop only) -->
+    <div class="corner-hud corner-hud-tl">
+      <div class="corner-hud-title">SIGNAL</div>
+      <div class="corner-hud-wave"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+    </div>
+    <div class="corner-hud corner-hud-tr">
+      <div class="radar">
+        <div class="radar-sweep"></div>
+        <div class="radar-ring"></div>
+        <div class="radar-ring r2"></div>
+      </div>
+    </div>
+
+    <!-- bottom-left stat gauges -->
+    <div class="stat-widget" id="stat-widget"></div>
+
+    <div class="hologram-core">
+      <div class="holo-ring holo-ring-a"></div>
+      <div class="holo-ring holo-ring-b"></div>
+      <div class="holo-glow"></div>
+    </div>
+
+    <div class="console">
+      <div class="bracketed">
+        <span class="br tl"></span><span class="br tr"></span><span class="br bl"></span><span class="br br-c"></span>
+        <div class="topbar">
+          <div class="topbar-left">
+            <span class="pulse-dot">●</span>
+            <span class="topbar-title">PERSONAL&nbsp;OS</span>
+            <span class="topbar-sub">// MARK VII CONSOLE</span>
+          </div>
+          <div class="topbar-right">
+            <span class="topbar-user" id="topbar-user"></span>
+            <span class="topbar-clock" id="clock">--:--:--</span>
+            <button class="lock-btn" id="lock-now-btn" title="Lock">⎋</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="main-grid">
+        <div class="bracketed nav-rail-wrap">
+          <span class="br tl"></span><span class="br tr"></span><span class="br bl"></span><span class="br br-c"></span>
+          <div class="nav-rail">
+            <div class="rail-label">MODULES</div>
+            <div id="nav-buttons"></div>
+            <div class="ring-slot" id="ring-slot"></div>
+          </div>
+        </div>
+
+        <div class="mobile-nav" id="mobile-nav"></div>
+
+        <div class="bracketed panel-wrap gold">
+          <span class="br tl gold"></span><span class="br tr gold"></span><span class="br bl gold"></span><span class="br br-c gold"></span>
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-header-left">
+                <span id="panel-icon" class="panel-icon"></span>
+                <span id="panel-title" class="panel-title"></span>
+              </div>
+              <span id="panel-meta" class="panel-meta"></span>
+            </div>
+
+            <div class="input-row" id="input-row">
+              <input id="entry-input" type="text" placeholder="" autocomplete="off" />
+              <button id="log-btn">
+                <span class="plus">+</span><span class="log-text">LOG</span>
+              </button>
+            </div>
+
+            <div class="entry-list" id="entry-list"></div>
+            <div class="diagram-wrap hidden" id="diagram-wrap"></div>
+          </div>
+        </div>
+
+        <div class="bracketed info-rail-wrap">
+          <span class="br tl"></span><span class="br tr"></span><span class="br bl"></span><span class="br br-c"></span>
+          <div class="info-rail">
+            <div class="rail-label">OVERVIEW</div>
+            <div id="overview-bars"></div>
+            <div class="footnote">All entries stored only on this device. Nothing leaves your phone.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script src="app.js"></script>
+</body>
+</html>
