@@ -293,8 +293,41 @@ button, input { font-family: inherit; }
 .secret-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid rgba(255,176,32,0.2); }
 .secret-title { font-family: 'Orbitron', sans-serif; font-size: 12px; letter-spacing: 0.3em; color: #ffc35c; }
 .secret-nav { display: flex; gap: 8px; padding: 12px 16px 0; }
-.secret-nav-btn { flex: 1; padding: 10px 6px; border: 1px solid rgba(79,216,255,0.25); background: rgba(0,0,0,0.2); color: rgba(103,224,255,0.6); font-family: 'Orbitron', sans-serif; font-size: 10px; letter-spacing: 0.08em; cursor: pointer; }
+.secret-nav-btn { flex: 1; padding: 10px 6px; border: 1px solid rgba(79,216,255,0.25); background: rgba(0,0,0,0.2); color: rgba(103,224,255,0.6); font-family: 'Orbitron', sans-serif; font-size: 10px; letter-spacing: 0.08em; cursor: pointer;
+  transition: border-color 7s ease, color 7s ease, background 7s ease, transform 7s ease; }
 .secret-nav-btn.active { border-color: #ffb020; color: #ffc35c; background: rgba(255,176,32,0.08); }
+#secret-content { flex: 1; overflow-y: auto; padding: 0 0 12px; display: flex; flex-direction: column; }
+#secret-content .input-row, #secret-content .entry-list { transition: border-color 7s ease, background 7s ease; }
+
+.folder-row { cursor: pointer; }
+.entry-sub-count { font-size: 10px; color: rgba(79,216,255,0.4); margin-right: 6px; flex-shrink: 0; }
+.folder-header { display: flex; align-items: center; gap: 10px; padding: 12px 16px 6px; }
+.back-btn { background: none; border: 1px solid rgba(79,216,255,0.3); color: #67e0ff; width: 26px; height: 26px; cursor: pointer; flex-shrink: 0; }
+.folder-header-name { font-family: 'Orbitron', sans-serif; font-size: 13px; color: #a8ecff; letter-spacing: 0.05em; transition: color 7s ease; }
+
+/* ---- serious mode: slow 7s dramatic theme shift + growing controls ---- */
+.secret-overlay.serious .secret-inner {
+  border-color: rgba(200,40,40,0.5);
+  background: rgba(20,4,4,0.85);
+  transition: border-color 7s ease, background 7s ease;
+}
+.secret-overlay.serious .secret-title { color: #ff6b6b; transition: color 7s ease; }
+.secret-overlay.serious .secret-header { border-bottom-color: rgba(200,40,40,0.3); transition: border-color 7s ease; }
+.secret-overlay.serious .secret-nav-btn { border-color: rgba(200,60,60,0.35); color: rgba(255,140,140,0.7); transform: scale(1.06); }
+.secret-overlay.serious .secret-nav-btn.active { border-color: #ff5a5a; color: #ffb3b3; background: rgba(200,40,40,0.1); }
+.secret-overlay.serious #secret-content .input-row input,
+.secret-overlay.serious #secret-content input {
+  border-color: rgba(200,60,60,0.35); transition: border-color 7s ease;
+}
+.secret-overlay.serious #secret-content button,
+.secret-overlay.serious .lock-btn {
+  transform: scale(1.08);
+  transition: transform 7s ease, border-color 7s ease, color 7s ease;
+}
+.secret-overlay.serious .entry { border-color: rgba(200,60,60,0.25); transition: border-color 7s ease; }
+.secret-overlay.serious .entry-dot { background: rgba(255,90,90,0.5); box-shadow: 0 0 6px rgba(255,90,90,0.5); transition: background 7s ease; }
+.secret-overlay.serious .folder-header-name { color: #ffb3b3; }
+.secret-overlay.serious .empty-state { color: rgba(255,120,120,0.35); transition: color 7s ease; }
 
 /* ============ HOLOGRAM CORE (behind console) ============ */
 .hologram-core { position: absolute; top: 50%; left: 50%; width: 1px; height: 1px; z-index: 0; pointer-events: none; opacity: 0.4; }

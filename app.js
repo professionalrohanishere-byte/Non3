@@ -16,7 +16,8 @@
     { key: "stories", label: "MY STORIES", placeholder: "Write your story…" },
   ];
   let secretActive = "diary";
-  let secretData = { diary: [], stories: [] };
+  let secretData = { diary: [], storyFolders: [] };
+  let currentFolderId = null;
 
   const SP = "personalos:"; // storage prefix
   let active = "tasks";
@@ -65,16 +66,25 @@
         data[m.key] = raw ? JSON.parse(raw) : [];
       } catch (e) { data[m.key] = []; }
     });
-    SECRET_MODULES.forEach((m) => {
-      try {
-        const raw = localStorage.getItem(SP + "secret_" + m.key);
-        secretData[m.key] = raw ? JSON.parse(raw) : [];
-      } catch (e) { secretData[m.key] = []; }
-    });
+    try {
+      const raw = localStorage.getItem(SP + "secret_diary");
+      secretData.diary = raw ? JSON.parse(raw) : [];
+    } catch (e) { secretData.diary = []; }
+    try {
+      const raw = localStorage.getItem(SP + "secret_storyfolders");
+      if (raw) {
+        secretData.storyFolders = JSON.parse(raw);
+      } else {
+        // migrate old flat "stories" list into a default folder, if it exists
+        const oldRaw = localStorage.getItem(SP + "secret_stories");
+        const oldItems = oldRaw ? JSON.parse(oldRaw) : [];
+        secretData.storyFolders = oldItems.length ? [{ id: uid(), name: "General", items: oldItems }] : [];
+      }
+    } catch (e) { secretData.storyFolders = []; }
   }
-  function saveSecret(key) {
-    try { localStorage.setItem(SP + "secret_" + key, JSON.stringify(secretData[key])); } catch (e) {}
-  }
+  function saveSecretDiary() { try { localStorage.setItem(SP + "secret_diary", JSON.stringify(secretData.diary)); } catch (e) {} }
+  function saveSecretFolders() { try { localStorage.setItem(SP + "secret_storyfolders", JSON.stringify(secretData.storyFolders)); } catch (e) {} }
+  function uid() { return Date.now() + "-" + Math.random().toString(36).slice(2, 7); }
   function save(key) {
     try { localStorage.setItem(SP + key, JSON.stringify(data[key])); } catch (e) {}
   }
@@ -768,44 +778,137 @@
 
   /* ================= SECRET ARCHIVE (hidden diary/stories) ================= */
   function renderSecretPanel() {
-    const list = document.getElementById("secret-list");
-    const items = secretData[secretActive] || [];
-    const mod = SECRET_MODULES.find((m) => m.key === secretActive);
-    document.getElementById("secret-input").placeholder = mod.placeholder;
     document.querySelectorAll(".secret-nav-btn").forEach((b) => b.classList.toggle("active", b.dataset.secret === secretActive));
-    list.innerHTML = "";
-    if (!items.length) { list.innerHTML = `<div class="empty-state">NOTHING HERE YET</div>`; return; }
-    items.forEach((it) => {
-      const row = document.createElement("div");
-      row.className = "entry";
-      row.innerHTML = `<span class="entry-dot"></span><span class="entry-text">${escapeHtml(it.text)}</span><button class="entry-del" data-id="${it.id}">✕</button>`;
-      list.appendChild(row);
-    });
-    list.querySelectorAll(".entry-del").forEach((b) => b.addEventListener("click", () => {
-      soundTap();
-      secretData[secretActive] = secretData[secretActive].filter((it) => it.id !== b.dataset.id);
-      saveSecret(secretActive);
-      renderSecretPanel();
-    }));
+    const content = document.getElementById("secret-content");
+    if (secretActive === "diary") { currentFolderId = null; renderDiarySection(content); }
+    else if (currentFolderId) { renderFolderContents(content); }
+    else { renderFolderList(content); }
   }
 
-  function addSecretItem() {
-    const input = document.getElementById("secret-input");
-    const text = input.value.trim();
-    if (!text) return;
-    secretData[secretActive].unshift({ id: Date.now() + "-" + Math.random().toString(36).slice(2, 7), text, createdAt: new Date().toISOString() });
-    saveSecret(secretActive);
-    input.value = "";
-    soundLog();
-    renderSecretPanel();
+  function renderDiarySection(content) {
+    const items = secretData.diary;
+    content.innerHTML = `
+      <div class="input-row"><input id="diary-input" type="text" placeholder="Write something…" autocomplete="off" /><button id="diary-log-btn"><span class="plus">+</span></button></div>
+      <div class="entry-list" id="diary-list"></div>`;
+    const list = document.getElementById("diary-list");
+    if (!items.length) { list.innerHTML = `<div class="empty-state">NOTHING HERE YET</div>`; }
+    else {
+      items.forEach((it) => {
+        const row = document.createElement("div");
+        row.className = "entry";
+        row.innerHTML = `<span class="entry-dot"></span><span class="entry-text" data-id="${it.id}">${escapeHtml(it.text)}</span><button class="entry-edit" data-id="${it.id}">✎</button><button class="entry-del" data-id="${it.id}">✕</button>`;
+        list.appendChild(row);
+      });
+      list.querySelectorAll(".entry-del").forEach((b) => b.addEventListener("click", () => {
+        soundTap(); secretData.diary = secretData.diary.filter((it) => it.id !== b.dataset.id); saveSecretDiary(); renderSecretPanel();
+      }));
+      list.querySelectorAll(".entry-edit").forEach((b) => b.addEventListener("click", () => {
+        soundTap(); startInlineEdit(list.querySelector(`.entry-text[data-id="${b.dataset.id}"]`), secretData.diary, b.dataset.id, saveSecretDiary);
+      }));
+    }
+    document.getElementById("diary-log-btn").onclick = () => {
+      const input = document.getElementById("diary-input");
+      const text = input.value.trim(); if (!text) return;
+      secretData.diary.unshift({ id: uid(), text, createdAt: new Date().toISOString() });
+      saveSecretDiary(); input.value = ""; soundLog(); renderSecretPanel();
+    };
+    document.getElementById("diary-input").addEventListener("keydown", (e) => { if (e.key === "Enter") document.getElementById("diary-log-btn").click(); });
   }
+
+  function renderFolderList(content) {
+    const folders = secretData.storyFolders;
+    content.innerHTML = `
+      <div class="input-row"><input id="folder-input" type="text" placeholder="New folder name…" autocomplete="off" /><button id="folder-add-btn"><span class="plus">+</span></button></div>
+      <div class="entry-list" id="folder-list"></div>`;
+    const list = document.getElementById("folder-list");
+    if (!folders.length) { list.innerHTML = `<div class="empty-state">NO FOLDERS YET — CREATE ONE ABOVE</div>`; }
+    else {
+      folders.forEach((f) => {
+        const row = document.createElement("div");
+        row.className = "entry folder-row";
+        row.innerHTML = `<span class="entry-dot"></span><span class="entry-text" data-folder="${f.id}">${escapeHtml(f.name)}</span><span class="entry-sub-count">${f.items.length}</span><button class="entry-del" data-delfolder="${f.id}">✕</button>`;
+        list.appendChild(row);
+      });
+      list.querySelectorAll("[data-folder]").forEach((el) => el.addEventListener("click", () => { soundTap(); currentFolderId = el.dataset.folder; renderSecretPanel(); }));
+      list.querySelectorAll("[data-delfolder]").forEach((b) => b.addEventListener("click", (e) => {
+        e.stopPropagation(); soundTap();
+        secretData.storyFolders = secretData.storyFolders.filter((f) => f.id !== b.dataset.delfolder);
+        saveSecretFolders(); renderSecretPanel();
+      }));
+    }
+    document.getElementById("folder-add-btn").onclick = () => {
+      const input = document.getElementById("folder-input");
+      const name = input.value.trim(); if (!name) return;
+      secretData.storyFolders.unshift({ id: uid(), name, items: [] });
+      saveSecretFolders(); input.value = ""; soundGoodSecret(); renderSecretPanel();
+    };
+    document.getElementById("folder-input").addEventListener("keydown", (e) => { if (e.key === "Enter") document.getElementById("folder-add-btn").click(); });
+  }
+
+  function renderFolderContents(content) {
+    const folder = secretData.storyFolders.find((f) => f.id === currentFolderId);
+    if (!folder) { currentFolderId = null; renderFolderList(content); return; }
+    content.innerHTML = `
+      <div class="folder-header"><button class="back-btn" id="folder-back-btn">←</button><span class="folder-header-name">${escapeHtml(folder.name)}</span></div>
+      <div class="input-row"><input id="story-input" type="text" placeholder="Write inside this folder…" autocomplete="off" /><button id="story-add-btn"><span class="plus">+</span></button></div>
+      <div class="entry-list" id="story-list"></div>`;
+    const list = document.getElementById("story-list");
+    if (!folder.items.length) { list.innerHTML = `<div class="empty-state">NOTHING HERE YET</div>`; }
+    else {
+      folder.items.forEach((it) => {
+        const row = document.createElement("div");
+        row.className = "entry";
+        row.innerHTML = `<span class="entry-dot"></span><span class="entry-text" data-id="${it.id}">${escapeHtml(it.text)}</span><button class="entry-edit" data-id="${it.id}">✎</button><button class="entry-del" data-id="${it.id}">✕</button>`;
+        list.appendChild(row);
+      });
+      list.querySelectorAll(".entry-del").forEach((b) => b.addEventListener("click", () => {
+        soundTap(); folder.items = folder.items.filter((it) => it.id !== b.dataset.id); saveSecretFolders(); renderSecretPanel();
+      }));
+      list.querySelectorAll(".entry-edit").forEach((b) => b.addEventListener("click", () => {
+        soundTap(); startInlineEdit(list.querySelector(`.entry-text[data-id="${b.dataset.id}"]`), folder.items, b.dataset.id, saveSecretFolders);
+      }));
+    }
+    document.getElementById("folder-back-btn").onclick = () => { soundTap(); currentFolderId = null; renderSecretPanel(); };
+    document.getElementById("story-add-btn").onclick = () => {
+      const input = document.getElementById("story-input");
+      const text = input.value.trim(); if (!text) return;
+      folder.items.unshift({ id: uid(), text, createdAt: new Date().toISOString() });
+      saveSecretFolders(); input.value = ""; soundLog(); renderSecretPanel();
+    };
+    document.getElementById("story-input").addEventListener("keydown", (e) => { if (e.key === "Enter") document.getElementById("story-add-btn").click(); });
+  }
+
+  function startInlineEdit(span, arr, id, saveFn) {
+    if (!span) return;
+    const item = arr.find((it) => it.id === id);
+    if (!item) return;
+    const input = document.createElement("input");
+    input.type = "text"; input.className = "entry-edit-input"; input.value = item.text;
+    span.replaceWith(input); input.focus(); input.setSelectionRange(input.value.length, input.value.length);
+    function commit() {
+      const text = input.value.trim();
+      if (text) { item.text = text; saveFn(); }
+      renderSecretPanel();
+    }
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") { soundLog(); commit(); } if (e.key === "Escape") renderSecretPanel(); });
+    input.addEventListener("blur", commit);
+  }
+
+  function soundGoodSecret() { tick(900, 0.08, 0.04); setTimeout(() => tick(1300, 0.1, 0.04), 90); }
 
   function openSecret() {
-    document.getElementById("secret-overlay").classList.remove("hidden");
+    const overlay = document.getElementById("secret-overlay");
+    overlay.classList.remove("hidden");
+    overlay.classList.remove("serious");
+    currentFolderId = null;
     renderSecretPanel();
+    // slow dramatic theme shift, 7 seconds after unlocking
+    setTimeout(() => { overlay.classList.add("serious"); }, 120);
   }
   function closeSecret() {
-    document.getElementById("secret-overlay").classList.add("hidden");
+    const overlay = document.getElementById("secret-overlay");
+    overlay.classList.add("hidden");
+    overlay.classList.remove("serious");
   }
 
   function bindSecretGesture() {
@@ -906,10 +1009,8 @@
     // secret archive
     bindSecretGesture();
     document.getElementById("secret-close-btn").addEventListener("click", () => { soundTap(); closeSecret(); });
-    document.getElementById("secret-log-btn").addEventListener("click", addSecretItem);
-    document.getElementById("secret-input").addEventListener("keydown", (e) => { if (e.key === "Enter") addSecretItem(); });
     document.querySelectorAll(".secret-nav-btn").forEach((b) => b.addEventListener("click", () => {
-      soundTap(); secretActive = b.dataset.secret; renderSecretPanel();
+      soundTap(); secretActive = b.dataset.secret; currentFolderId = null; renderSecretPanel();
     }));
 
     document.getElementById("lock-now-btn").addEventListener("click", () => {
